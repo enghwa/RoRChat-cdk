@@ -1,7 +1,29 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
-import { RoRChatCdkStack } from '../lib/ro_r_chat-cdk-stack';
+import { rorVPC } from '../lib/vpc-stack';
+import { DbRedisStack } from '../lib/db-redis-stack';
+import { ecsFargateStack } from '../lib/ecs-fargate-stack';
+
+const env = {
+  region: process.env.CDK_DEFAULT_REGION,
+  account: process.env.CDK_DEFAULT_ACCOUNT
+}
+
 
 const app = new cdk.App();
-new RoRChatCdkStack(app, 'RoRChatCdkStack');
+
+const vpcStack = new rorVPC(app, 'ror6Vpc', { env })
+
+const dataStack = new DbRedisStack(app, 'postgresDBRedis', {
+  vpc: vpcStack.vpc,
+  env
+})
+
+const ecsFargate = new ecsFargateStack(app, 'RoRFargate', {
+  vpc: vpcStack.vpc,
+  dbcluster: dataStack.dbcluster,
+  dbclusterPassword: dataStack.dbclusterPassword,
+  redisCluster: dataStack.redisCluster,
+  env
+})
