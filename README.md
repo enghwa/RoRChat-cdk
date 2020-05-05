@@ -1,4 +1,7 @@
 
+# Intro
+
+This will deploy a Ruby on Rails 6 chat app with Redis and Postgres backend on AWS Fargate.
 
 ```
 # install docker-compose -> [Install Docker Compose | Docker Documentation](https://docs.docker.com/compose/install/)
