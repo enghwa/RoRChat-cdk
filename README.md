@@ -4,6 +4,11 @@
 # install docker-compose -> [Install Docker Compose | Docker Documentation](https://docs.docker.com/compose/install/)
 
 
+cd RoRChat-cdk/
+git clone https://github.com/enghwa/RoRChat RoRChat
+
+cd RoRChat
+
 # build local Docker container for RoR6 chat app
 
 docker build -t ror6dev --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) .
@@ -17,26 +22,14 @@ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
 
 ```
 
+# deploy to AWS, using ECS Fargate
+
 ```
-mkdir RoRChat-cdk/
-cd RoRChat-cdk/
-
-
-cdk init --language typescript
-
-npm i @aws-cdk/aws-codebuild @aws-cdk/aws-codepipeline @aws-cdk/aws-codepipeline-actions @aws-cdk/aws-ecr @aws-cdk/aws-ecs-patterns @aws-cdk/aws-elasticache @aws-cdk/aws-iam @aws-cdk/aws-rds @aws-cdk/aws-route53 @aws-cdk/aws-servicediscovery  --save
-
-#rename
-cd lib
-mv ro_r_chat-cdk-stack.ts vpc-stack.ts
-cd ..
-
-#fix test
-npm run build
 
 # lets build our vpc
-cdk synth
-cdk deploy
+cdk list
+cdk synth 
+cdk deploy ror6Vpc
 
 # lets build our db/redis
 cdk list
