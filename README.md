@@ -42,3 +42,16 @@ cdk deploy postgresDBRedis
 
 cdk deploy RoRFargate
 ```
+
+## CICD
+
+* Create a new github repo and commit the `RoRChat` application sub-folder.
+* create a Github Access token and store the token in AWS SSM Secret Manager - https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-create-personal-token-CLI.html
+
+
+* update `bin/ror_r_chat-cdk.ts` line 37-39.
+
+```
+
+cdk deploy RoRChatCiCd
+```
