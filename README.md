@@ -27,6 +27,14 @@ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
 
 # deploy to AWS, using ECS Fargate
 
+
+* Create a new github repo and commit the `RoRChat` application sub-folder.
+* create a Github Access token and store the token in AWS SSM Secret Manager - https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-create-personal-token-CLI.html
+
+
+* update `bin/ror_r_chat-cdk.ts` line 37-39.
+
+
 ```
 
 # lets build our vpc
@@ -45,11 +53,6 @@ cdk deploy RoRFargate
 
 ## CICD
 
-* Create a new github repo and commit the `RoRChat` application sub-folder.
-* create a Github Access token and store the token in AWS SSM Secret Manager - https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-create-personal-token-CLI.html
-
-
-* update `bin/ror_r_chat-cdk.ts` line 37-39.
 
 ```
 
