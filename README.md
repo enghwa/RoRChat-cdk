@@ -29,6 +29,17 @@ Service:: ECS maintains the "`desired state`" of your application. This is achie
 ## <a name="pre-requisites"></a>Pre-requisites
 
 ### <a name="setup-cloud9"></a>Setup Cloud9
+1. Click the link [here](https://ap-southeast-1.console.aws.amazon.com/cloud9/home/product?region=ap-southeast-1) to go to Cloud9 console. Sign in with your credentials if necessary. You need to be in **Singapore** region for this lab.
+
+2. Click on **Create Environment**.
+
+3. Give any appropriate name and description to your environment. Click on **Next**.
+
+4. Choose **M4.large** instance type and click on **Next**.
+
+5. Click on **Create Environment**.
+
+6. After a few minutes, when your environment is up, you will be redirected to the Cloud9 IDE.
 
 ### <a name="resize-ebs-storage"></a>Resize EBS storage
 
