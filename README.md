@@ -118,8 +118,6 @@ $ npm install
 $ npm run build
 ```
 
-Comment lines 34 to 41 in bin/ro_r_chat-cdk.ts . We will un-comment this when we get to the CI/CD step.
-
 Build the vpc
 ```
 $ cdk synth
