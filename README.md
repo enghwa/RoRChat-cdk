@@ -1,60 +1,149 @@
+- [RoR Chat on  Amazon EC2 Container Service (ECS)](#ror-chat-on--amazon-ec2-container-service--ecs-)
+  * [Amazon ECS](#amazon-ecs)
+  * [ECS Basic Concepts](#ecs-basic-concepts)
+  * [We will:](#we-will-)
+  * [Pre-requisites](#pre-requisites)
+    + [Setup Cloud9](#setup-cloud9)
+    + [Resize EBS storage](#resize-ebs-storage)
+    + [Install Docker composer](#install-docker-composer)
+  * [Chat application on Docker (Local)](#chat-application-on-docker--local-)
+  * [Chat application on ECS](#chat-application-on-ecs)
 
-# Intro
+# RoR Chat on  Amazon EC2 Container Service (ECS)
 
-This will deploy a Ruby on Rails 6 chat app with Redis and Postgres backend on AWS Fargate.
+This will deploy a Ruby on Rails 6 chat app with Redis and Postgres backend on ECS using CDK.
 
+## Amazon ECS
+Amazon Elastic Container Service (Amazon ECS) is a **fully managed container orchestration** service. ECS has been a foundational pillar for key Amazon services, it can **natively integrate** with other services such as Amazon Route 53, Secrets Manager, AWS Identity and Access Management (IAM), and Amazon CloudWatch providing you a familiar experience to deploy and scale your containers. ECS allows your applications the flexibility to use a mix of **Amazon EC2** and **AWS Fargate** with Spot and On-Demand pricing options. 
+
+## ECS Basic Concepts
+
+Container Instance:: An AMI instance that is primed for running containers. By default, each Amazon instance uses Amazon ECS-Optimized Linux AMI. This is the recommended image to run ECS container service. The key components of this base image are:
+. Amazon Linux AMI
+. Amazon ECS Container Agent – manages containers lifecycle on behalf of ECS and allows them to connect to the cluster
+. Docker Engine
+
+Task:: A task is defined as a JSON file and describes an application that contains one or more container definitions. This usually points to Docker images from a registry, port/volume mapping, etc.
+
+Service:: ECS maintains the "`desired state`" of your application. This is achieved by creating a service. A service specifies the number of instances of a task definition that needs to run at a given time. If the task in a service becomes unhealthy or stop running, then the service scheduler will bounce the task. It ensures that the desired and actual state are match. This is what provides resilience in ECS.New tasks within a Service are balanced across Availability Zones in your cluster. Service scheduler figures out which container instances can meet the needs of a service and schedules it on a valid container instance in an optimal Availability Zone (one with the fewest number of tasks running).
+
+## We will:
+* Deploy AWS CloudFormation stack to set up prerequisites. 
+* Manage Docker images of **cats** and **dogs** in Amazon ECR.
+* Create Amazon ECS **cluster, task definitions**, and **services**. 
+* Choose right **launch type** either **EC2** or **Fargate** for each service.
+* Deploy simple containerized application **cats and dogs** path-routed through ALB.
+* Monitor ECS cluster and services in Amazon CloudWatch **Container Insights**.
+* Centralize **container logs** using **AWS FireLens** and Amazon CloudWatch Logs.
+* Scale ECS **services** and **cluster** automatically.
+
+## Pre-requisites
+
+### Setup Cloud9
+
+### Resize EBS storage
+
+Create a script file named resize.sh and use the code provided [here](https://docs.aws.amazon.com/cloud9/latest/user-guide/move-environment.html#move-environment-resize) based on the distro used.
+
+Execute the script to resize EBS to 100GB
 ```
-# install docker-compose -> [Install Docker Compose | Docker Documentation](https://docs.docker.com/compose/install/)
+$ sh resize.sh 100
+```
+Reboot instance from the EC2 console
 
+### Install Docker composer
+ [Install Docker Compose | Docker Documentation](https://docs.docker.com/compose/install/)
+```
+$ sudo curl -L "https://github.com/docker/compose/releases/download/1.25.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 
-cd RoRChat-cdk/
-git clone https://github.com/enghwa/RoRChat RoRChat
+$ sudo chmod +x /usr/local/bin/docker-compose
 
-cd RoRChat
-
-# build local Docker container for RoR6 chat app
-
-docker build -t ror6dev --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) .
-
-
-# bring up the app with mysql and redis
-
-docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6 bundle exec rake db:setup 
-
-docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
-
+$ docker-compose --version
 ```
 
-# deploy to AWS, using ECS Fargate
+## Chat application on Docker (Local)
 
-
-* Create a new github repo and commit the `RoRChat` application sub-folder.
-* create a Github Access token and store the token in AWS SSM Secret Manager - https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-create-personal-token-CLI.html
-
-
-* update `bin/ror_r_chat-cdk.ts` line 37-39.
-
-
+Clone repo https://github.com/enghwa/RoRChat-cdk.git
+```
+$ cd RoRChat-cdk/
+$ git clone https://github.com/enghwa/RoRChat RoRChat
+$ cd RoRChat
 ```
 
-# lets build our vpc
-cdk list
-cdk synth 
-cdk deploy ror6Vpc
-
-# lets build our db/redis
-cdk list
-cdk deploy postgresDBRedis
-
-# lets build alb/fargate/ROR6 chat
-
-cdk deploy RoRFargate
+Build the docker container locally for the RoR6 chat app
+```
+$ docker build -t ror6dev --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) .
 ```
 
-## CICD
-
-
+Setup the database
+```
+$ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6 bundle exec rake db:setup 
 ```
 
-cdk deploy RoRChatCiCd
+Bring up the app with mySQL and Redis locally
+```
+$ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
+```
+
+Preview the application in CLoud9 and it will show an error to add an entry into config.
+
+Add the following line to the end of the file /config/environments/development.rb
+```
+#example, dont copy
+  config.hosts << "cb2c7446f879462c897b3a79679d8e59.vfs.cloud9.ap-southeast-1.amazonaws.com"
+```
+
+Bring up the app with mySQL and Redis locally again
+```
+$ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
+```
+
+Access application in a seperate browser tab
+
+## Chat application on ECS
+
+Initialize the cdk repo
+```
+# go back to root folder RoRChat-cdk/
+cd ..
+
+$ npm install
+
+$ npm run build
+```
+
+Comment lines 34 to 41 in bin/ro_r_chat-cdk.ts . We will un-comment this when we get to the CI/CD step.
+
+Build the vpc
+```
+$ cdk synth
+
+$ npm run build
+
+$ cdk deploy ror6Vpc
+```
+
+Build db/redis
+```
+$ cdk list
+
+$ npm run build
+
+$ cdk deploy postgresDBRedis
+```
+
+Build alb/fargate/ROR6 chat
+```
+$ cdk list
+
+$ npm run build
+
+$ cdk deploy RoRFargate
+```
+
+An error mentioining to bootstrap the environment will be displayed
+```
+$ cdk bootstrap aws://556129231893/ap-southeast-1
+
+$ cdk deploy RoRFargate
 ```
