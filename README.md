@@ -7,6 +7,7 @@
     + [Install Docker composer](#install-docker-composer)
   * [Chat application on Docker (Local)](#chat-application-on-docker--local-)
   * [Chat application on ECS](#chat-application-on-ecs)
+  * [CI/CD](#ci-cd)  
 
 # RoR Chat on  Amazon EC2 Container Service (ECS)
 
@@ -70,6 +71,11 @@ $ git clone https://github.com/enghwa/RoRChat RoRChat
 $ cd RoRChat
 ```
 
+Add the RoRChat app to your Github account:
+* Create a new github repo and commit the `RoRChat` application sub-folder.
+* Create a Github Access token and store the token in AWS SSM Secret Manager - https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-create-personal-token-CLI.html
+* update `bin/ror_r_chat-cdk.ts` line 37-39.
+
 Build the docker container locally for the RoR6 chat app
 ```
 $ docker build -t ror6dev --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) .
@@ -85,7 +91,7 @@ Bring up the app with mySQL and Redis locally
 $ docker-compose run  --user "$(id -u):$(id -g)" -p8080:8010  ror6
 ```
 
-Preview the application in CLoud9 and it will show an error to add an entry into config.
+Preview the application in Cloud9 and it will show an error to add an entry into config.
 
 Add the following line to the end of the file /config/environments/development.rb
 ```
@@ -146,4 +152,11 @@ An error mentioining to bootstrap the environment will be displayed
 $ cdk bootstrap aws://556129231893/ap-southeast-1
 
 $ cdk deploy RoRFargate
+```
+
+## <a name="ci-cd"></a>CI/CD
+
+
+```
+$ cdk deploy RoRChatCiCd
 ```
