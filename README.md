@@ -35,7 +35,7 @@ Service:: ECS maintains the "`desired state`" of your application. This is achie
 
 3. Give any appropriate name and description to your environment. Click on **Next**.
 
-4. Choose **M4.large** instance type and click on **Next**.
+4. Choose an instance type and click on **Next**.
 
 5. Click on **Create Environment**.
 
