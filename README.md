@@ -7,6 +7,7 @@
     + [Install Docker composer](#install-docker-composer)
   * [Chat application on Docker (Local)](#chat-application-on-docker--local-)
   * [Chat application on ECS](#chat-application-on-ecs)
+  * [Custom domain name for Load balancer with SSL](#custom-domain-name-alb)
   * [CI/CD](#ci-cd)  
 
 # RoR Chat on  Amazon EC2 Container Service (ECS)
@@ -145,12 +146,153 @@ $ npm run build
 $ cdk deploy RoRFargate
 ```
 
-An error mentioining to bootstrap the environment will be displayed
+An error mentioning to bootstrap the environment will be displayed
 ```
 $ cdk bootstrap aws://556129231893/ap-southeast-1
 
 $ cdk deploy RoRFargate
 ```
+
+## <a name="custom-domain-name-alb"></a>Custom domain name for Load balancer with SSL
+
+The ECS pattern `ApplicationLoadBalancedFargateService` requires using a hosted zone in Route53 to enables HTTPS. Instead we will create the certificate and add a TLS listener to the ALB using the aws cli. 
+
+In order to configure TLS on the ALB listener, we will need a SSL certificate which can be requested/managed through the Amazon Certificate Manager service (replacing example.com with your domain).
+
+```
+aws acm request-certificate \
+  --domain-name www.example.com \
+  --subject-alternative-names "example.com" \
+  --validation-method DNS
+```
+This will return output like this:
+
+```
+{
+    "CertificateArn": "arn:aws:acm:ap-southeast-1:123456789012:certificate/aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"
+}
+```
+Use the Amazon Resource Name (ARN) from the command above to query and get the DNS CNAME record you need to add to your domain provider. This will then facilitate getting the cerificate validated.
+
+Create a DNS record that will need to be added to your domain using the ACM DNS value from the output above to validate certificate
+
+```
+aws acm describe-certificate \
+  --certificate-arn arn:aws:acm:ap-southeast-1:123456789012:certificate/aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb \
+  --query 'Certificate.DomainValidationOptions'
+
+```
+
+This will return output like this:
+
+```
+[
+{
+    "DomainName": "www.example.com",
+    "ValidationDomain": "www.example.com",
+    "ValidationStatus": "PENDING_VALIDATION",
+    "ResourceRecord": {
+        "Name": "_fe11e6d33b981de0a491ad26bcd6ba11.www.example.com.",
+        "Type": "CNAME",
+        "Value": "_4acexxxx6fec33b8cbyyy5bf19d22dd5.auiqqraehs.acm-validations.aws."
+    },
+    "ValidationMethod": "DNS"
+},
+{
+    "DomainName": "example.com",
+    "ValidationDomain": "example.com",
+    "ValidationStatus": "PENDING_VALIDATION",
+    "ResourceRecord": {
+        "Name": "_30dd99eaeba12db5b3c6eb66a7848fbb.example.com.",
+        "Type": "CNAME",
+        "Value": "_5e79ba4de5aaa5eda715fzzzz384451.auiqqraehs.acm-validations.aws."
+    },
+    "ValidationMethod": "DNS"
+}
+]
+```
+Use the `ResourceRecord` information to create the DNS record in your domain provider by adding a CNAME record to validate the certificate. This might take a bit for ACM to validate the certificate but keep checking the status of the certificate by running the aws `acm describe-certificate` command and waiting until the output returns SUCCESS for the ValidationStatus like the below example output:
+
+```
+[
+{
+    "DomainName": "www.example.com",
+    "ValidationDomain": "www.example.com",
+    "ValidationStatus": "SUCCESS",
+    "ResourceRecord": {
+        "Name": "_fe11e6d33b981de0a491ad26bcd6ba11.www.example.com.",
+        "Type": "CNAME",
+        "Value": "_4acexxxx6fec33b8cbyyy5bf19d22dd5.auiqqraehs.acm-validations.aws."
+    },
+    "ValidationMethod": "DNS"
+},
+{
+    "DomainName": "example.com",
+    "ValidationDomain": "example.com",
+    "ValidationStatus": "SUCCESS",
+    "ResourceRecord": {
+        "Name": "_30dd99eaeba12db5b3c6eb66a7848fbb.example.com.",
+        "Type": "CNAME",
+        "Value": "_5e79ba4de5aaa5eda715fzzzz384451.auiqqraehs.acm-validations.aws."
+    },
+    "ValidationMethod": "DNS"
+}
+]
+```
+
+Create ALB Listener Rule using the following information
+* certificate ARN
+* ALB ARN
+* Target Group ARN
+
+Get your ALB ARN
+
+```
+aws elbv2 describe-load-balancers \
+  --query 'LoadBalancers[*].LoadBalancerArn' \
+  | grep RoR
+```
+This will return output like this:
+
+```
+"arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:loadbalancer/app/RoRFa-RoRap-abcdefghijklmnop"
+```
+
+Get your Target Group ARN
+```
+aws elbv2 describe-target-groups \
+  --query 'TargetGroups[*].TargetGroupArn' \
+  | grep RoRFa
+```
+
+This will return output like this:
+
+```
+"arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/RoRFa-RoRap-0123456789abcdef"
+```
+Use the values retrieved above to create the listener:
+
+```
+aws elbv2 create-listener \
+  --protocol HTTPS --port 443 \
+  --load-balancer-arn="arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:loadbalancer/app/RoRFa-RoRap-abcdefghijklmnop" \
+  --default-actions "Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/RoRFa-RoRap-0123456789abcdef" \
+  --certificates "CertificateArn=arn:aws:acm:ap-southeast-1:123456789012:certificate/aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb" \
+  --ssl-policy ELBSecurityPolicy-2016-08
+```
+
+Get the DNS name of the ALB and add it as a CNAME record in your domain provider. 
+```
+aws elbv2 describe-load-balancers \
+  --query 'LoadBalancers[*].DNSName' \
+  | grep RoR
+```
+This will return output like this:
+
+```
+"RoRFa-RoRap-0123456789abcdef.ap-southeast-1.elb.amazonaws.com"
+```
+Use the above and create a CNAME record in your domain provider.
 
 ## <a name="ci-cd"></a>CI/CD
 
